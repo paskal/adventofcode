@@ -13,13 +13,17 @@ var input string
 
 func main() {
 	var sum int
-	for i, card := range strings.Split(input, "\n") {
-		card, _ = strings.CutPrefix(card, "Card "+strconv.Itoa(i+1)+": ")
+	for _, card := range strings.Split(input, "\n") {
+		rawCard := strings.Split(card, ": ")
+		if len(rawCard) != 2 {
+			log.Panicf("card content is not separated by \":\" in two parts as expected: %d", len(rawCard))
+		}
+		card = rawCard[1]
 		cardContent := strings.Split(card, " | ")
 		if len(cardContent) != 2 {
 			log.Panicf("card content is not separated by \"|\" in two parts as expected: %d", len(cardContent))
 		}
-		var chosenNumbers = map[int]struct{}{}
+		var winningNumbers = map[int]struct{}{}
 		var currentNumber string
 		isDigit := regexp.MustCompile(`\d`)
 		for _, c := range strings.Split(cardContent[0], "") {
@@ -28,13 +32,13 @@ func main() {
 			}
 			if c == " " && currentNumber != "" {
 				num, _ := strconv.Atoi(currentNumber)
-				chosenNumbers[num] = struct{}{}
+				winningNumbers[num] = struct{}{}
 				currentNumber = ""
 			}
 		}
 		if currentNumber != "" {
 			num, _ := strconv.Atoi(currentNumber)
-			chosenNumbers[num] = struct{}{}
+			winningNumbers[num] = struct{}{}
 			currentNumber = ""
 		}
 		var sumCard int
@@ -44,7 +48,7 @@ func main() {
 			}
 			if c == " " && currentNumber != "" {
 				num, _ := strconv.Atoi(currentNumber)
-				if _, ok := chosenNumbers[num]; ok {
+				if _, ok := winningNumbers[num]; ok {
 					if sumCard == 0 {
 						sumCard++
 					} else {
@@ -56,7 +60,7 @@ func main() {
 		}
 		if currentNumber != "" {
 			num, _ := strconv.Atoi(currentNumber)
-			if _, ok := chosenNumbers[num]; ok {
+			if _, ok := winningNumbers[num]; ok {
 				if sumCard == 0 {
 					sumCard++
 				} else {
