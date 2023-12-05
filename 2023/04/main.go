@@ -13,7 +13,13 @@ var input string
 
 func main() {
 	var sum int
-	for _, card := range strings.Split(input, "\n") {
+	var sumWonScratchCards int
+	var multipliers = map[int]int{}
+	for i, card := range strings.Split(input, "\n") {
+		if multipliers[i] == 0 {
+			multipliers[i] = 1
+		}
+		sumWonScratchCards += multipliers[i]
 		rawCard := strings.Split(card, ": ")
 		if len(rawCard) != 2 {
 			log.Panicf("card content is not separated by \":\" in two parts as expected: %d", len(rawCard))
@@ -42,6 +48,7 @@ func main() {
 			currentNumber = ""
 		}
 		var sumCard int
+		var wonCards int
 		for _, c := range strings.Split(cardContent[1], "") {
 			if c != " " && isDigit.MatchString(c) {
 				currentNumber += c
@@ -54,6 +61,12 @@ func main() {
 					} else {
 						sumCard *= 2
 					}
+					wonCards++
+					wonCard := i + wonCards
+					if multipliers[wonCard] == 0 {
+						multipliers[wonCard] = 1
+					}
+					multipliers[wonCard] += multipliers[i]
 				}
 				currentNumber = ""
 			}
@@ -66,10 +79,16 @@ func main() {
 				} else {
 					sumCard *= 2
 				}
+				wonCards++
+				wonCard := i + wonCards
+				if multipliers[wonCard] == 0 {
+					multipliers[wonCard] = 1
+				}
+				multipliers[wonCard] += multipliers[i]
 			}
 			currentNumber = ""
 		}
 		sum += sumCard
 	}
-	log.Printf("Sum of winning cards: %d", sum)
+	log.Printf("Sum of winning cards: %d, won scratch cards: %d", sum, sumWonScratchCards)
 }
