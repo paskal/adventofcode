@@ -11,7 +11,8 @@ import (
 
 //go:embed input.txt
 var input string
-var emptyLine = "."
+
+const emptyLine = "."
 
 func main() {
 	var sum int
