@@ -14,7 +14,7 @@ var input string
 var digits = regexp.MustCompile("\\d+")
 
 func main() {
-	resolveOrder := []map[int]int{
+	resolveOrder := [][][]int{
 		collectMatches("seed-to-soil"),
 		collectMatches("soil-to-fertilizer"),
 		collectMatches("fertilizer-to-water"),
@@ -25,8 +25,8 @@ func main() {
 	}
 	minLocation := int(math.Inf(0))
 	for _, id := range getSeeds(input) {
-		for _, lookupMap := range resolveOrder {
-			id = lookupID(id, lookupMap)
+		for _, lookupTable := range resolveOrder {
+			id = lookupID(id, lookupTable)
 		}
 		if id < minLocation {
 			minLocation = id
@@ -35,8 +35,8 @@ func main() {
 	log.Printf("Min location: %d", minLocation)
 }
 
-func collectMatches(matchString string) map[int]int {
-	var mapResults = map[int]int{}
+func collectMatches(matchString string) [][]int {
+	var results = [][]int{}
 	findSectionRegexp := regexp.MustCompile(matchString + " map:\n(?:\\d+ \\d+ \\d+\n?)+")
 	sectionRaw := findSectionRegexp.FindStringSubmatch(input)[0]
 	digitsRegexp := regexp.MustCompile("(\\d+) (\\d+) (\\d+)")
@@ -46,14 +46,10 @@ func collectMatches(matchString string) map[int]int {
 			destinationRangeStart, _ := strconv.Atoi(match[1])
 			sourceRangeStart, _ := strconv.Atoi(match[2])
 			rangeLength, _ := strconv.Atoi(match[3])
-			for i := 0; i < rangeLength; i++ {
-				mapResults[sourceRangeStart] = destinationRangeStart
-				sourceRangeStart++
-				destinationRangeStart++
-			}
+			results = append(results, []int{destinationRangeStart, sourceRangeStart, rangeLength})
 		}
 	}
-	return mapResults
+	return results
 }
 
 func getSeeds(text string) []int {
@@ -68,9 +64,11 @@ func getSeeds(text string) []int {
 	return seeds
 }
 
-func lookupID(id int, data map[int]int) int {
-	if value, ok := data[id]; ok {
-		return value
+func lookupID(id int, data [][]int) int {
+	for _, entry := range data {
+		if id > entry[1] && id < entry[1]+entry[2] {
+			return entry[0] + id - entry[1]
+		}
 	}
 	return id
 }
