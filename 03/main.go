@@ -19,6 +19,8 @@ func main() {
 	rawLines := strings.Split(input, "\n")
 	lines := make([][]string, len(rawLines))
 	for x, line := range rawLines {
+		// add space to verify last digit will be processed within the loop
+		line += " "
 		lines[x] = make([]string, len(line))
 		for y, c := range strings.Split(line, "") {
 			lines[x][y] = c
@@ -55,17 +57,6 @@ func main() {
 				adjustedToGear = false
 			}
 		}
-		if numberHasAdjustedSymbol != nil && currentNumber != "" {
-			digit, _ := strconv.Atoi(currentNumber)
-			sum += digit
-			if adjustedToGear {
-				gearCoordinates := fmt.Sprintf("%d%d", numberHasAdjustedSymbol[0], numberHasAdjustedSymbol[1])
-				gears[gearCoordinates] = append(gears[gearCoordinates], digit)
-			}
-		}
-		currentNumber = ""
-		numberHasAdjustedSymbol = nil
-		adjustedToGear = false
 	}
 	var sumGears int
 	for _, parts := range gears {
