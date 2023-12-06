@@ -29,11 +29,19 @@ func main() {
 	if len(rawDistance) != 2 {
 		log.Panicf("distance line is not separated by \":\" in two parts as expected: %d", len(rawDistance))
 	}
+	sumWinningOutcomesMultipleRaces := multipleRacesWinningOutcomes(rawTime[1], rawDistance[1])
+	log.Printf("Winning outcomes with multiple races: %d", sumWinningOutcomesMultipleRaces)
+	sumWinningOutcomesSingleRace := oneRaceWinningOutcomes(rawTime[1], rawDistance[1])
+	log.Printf("Winning outcomes with single race: %d", sumWinningOutcomesSingleRace)
+
+}
+
+func multipleRacesWinningOutcomes(rawTime string, rawDistance string) int {
 	var races []raceEntry
 	var currentNumber string
 	isDigit := regexp.MustCompile(`\d`)
 	// add space to verify last digit will be processed within the loop
-	for _, c := range strings.Split(rawTime[1]+" ", "") {
+	for _, c := range strings.Split(rawTime+" ", "") {
 		if c != " " && isDigit.MatchString(c) {
 			currentNumber += c
 		}
@@ -45,7 +53,7 @@ func main() {
 	}
 	// add space to verify last digit will be processed within the loop
 	var digitIndex int
-	for _, c := range strings.Split(rawDistance[1]+" ", "") {
+	for _, c := range strings.Split(rawDistance+" ", "") {
 		if c != " " && isDigit.MatchString(c) {
 			currentNumber += c
 		}
@@ -58,17 +66,45 @@ func main() {
 	}
 	var sumWinningOutcomes int
 	for _, race := range races {
-		var winningOutcome int
+		var winningOutcomes int
 		for time := 0; time <= race.time; time++ {
 			if time*(race.time-time) > race.distance {
-				winningOutcome += 1
+				winningOutcomes += 1
 			}
 		}
 		if sumWinningOutcomes == 0 {
-			sumWinningOutcomes += winningOutcome
+			sumWinningOutcomes += winningOutcomes
 		} else {
-			sumWinningOutcomes *= winningOutcome
+			sumWinningOutcomes *= winningOutcomes
 		}
 	}
-	log.Printf("Winning outcomes: %d", sumWinningOutcomes)
+	return sumWinningOutcomes
+}
+
+func oneRaceWinningOutcomes(rawTime string, rawDistance string) int {
+	var race raceEntry
+	var currentNumber string
+	isDigit := regexp.MustCompile(`\d`)
+	for _, c := range strings.Split(rawTime, "") {
+		if c != " " && isDigit.MatchString(c) {
+			currentNumber += c
+		}
+	}
+	num, _ := strconv.Atoi(currentNumber)
+	race.time = num
+	currentNumber = ""
+	for _, c := range strings.Split(rawDistance, "") {
+		if c != " " && isDigit.MatchString(c) {
+			currentNumber += c
+		}
+	}
+	num, _ = strconv.Atoi(currentNumber)
+	race.distance = num
+	var winningOutcomes int
+	for time := 0; time <= race.time; time++ {
+		if time*(race.time-time) > race.distance {
+			winningOutcomes += 1
+		}
+	}
+	return winningOutcomes
 }
