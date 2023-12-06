@@ -104,7 +104,12 @@ func getWinningOutcomes(race raceEntry) int {
 		if buttonPressTime*(race.time-buttonPressTime) > race.distance {
 			winningOutcomes += 1
 		}
-		// formula: buttonPressTime*buttonPressTime-race.time*buttonPressTime+race.distance < 0
 	}
+	// formula: buttonPressTime*buttonPressTime-race.time*buttonPressTime+race.distance < 0
+	//d := race.time*race.time - 4*race.distance
+	//x1 := (float64(race.time) + math.Sqrt(float64(d))) / 2
+	//x2 := (float64(race.time) - math.Sqrt(float64(d))) / 2
+	//log.Printf("winningOutcomes: %d, formula: %d", winningOutcomes, int(x1-x2))
+	// this doesn't work reliably due to rounding
 	return winningOutcomes
 }
