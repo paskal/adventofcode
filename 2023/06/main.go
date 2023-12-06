@@ -66,12 +66,7 @@ func multipleRacesWinningOutcomes(rawTime string, rawDistance string) int {
 	}
 	var sumWinningOutcomes int
 	for _, race := range races {
-		var winningOutcomes int
-		for time := 0; time <= race.time; time++ {
-			if time*(race.time-time) > race.distance {
-				winningOutcomes += 1
-			}
-		}
+		winningOutcomes := getWinningOutcomes(race)
 		if sumWinningOutcomes == 0 {
 			sumWinningOutcomes += winningOutcomes
 		} else {
@@ -100,11 +95,16 @@ func oneRaceWinningOutcomes(rawTime string, rawDistance string) int {
 	}
 	num, _ = strconv.Atoi(currentNumber)
 	race.distance = num
+	return getWinningOutcomes(race)
+}
+
+func getWinningOutcomes(race raceEntry) int {
 	var winningOutcomes int
-	for time := 0; time <= race.time; time++ {
-		if time*(race.time-time) > race.distance {
+	for buttonPressTime := 0; buttonPressTime <= race.time; buttonPressTime++ {
+		if buttonPressTime*(race.time-buttonPressTime) > race.distance {
 			winningOutcomes += 1
 		}
+		// formula: buttonPressTime*buttonPressTime-race.time*buttonPressTime+race.distance < 0
 	}
 	return winningOutcomes
 }
