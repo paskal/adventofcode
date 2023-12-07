@@ -3,6 +3,7 @@ package main
 import (
 	_ "embed"
 	"log"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -66,7 +67,7 @@ func multipleRacesWinningOutcomes(rawTime string, rawDistance string) int {
 	}
 	var sumWinningOutcomes int
 	for _, race := range races {
-		winningOutcomes := getWinningOutcomes(race)
+		winningOutcomes := getWinningOutcomesBruteforce(race)
 		if sumWinningOutcomes == 0 {
 			sumWinningOutcomes += winningOutcomes
 		} else {
@@ -95,21 +96,23 @@ func oneRaceWinningOutcomes(rawTime string, rawDistance string) int {
 	}
 	num, _ = strconv.Atoi(currentNumber)
 	race.distance = num
-	return getWinningOutcomes(race)
+	return getWinningOutcomesByFormula(race)
 }
 
-func getWinningOutcomes(race raceEntry) int {
+func getWinningOutcomesBruteforce(race raceEntry) int {
 	var winningOutcomes int
 	for buttonPressTime := 0; buttonPressTime <= race.time; buttonPressTime++ {
 		if buttonPressTime*(race.time-buttonPressTime) > race.distance {
 			winningOutcomes += 1
 		}
 	}
-	// formula: buttonPressTime*buttonPressTime-race.time*buttonPressTime+race.distance < 0
-	//d := race.time*race.time - 4*race.distance
-	//x1 := (float64(race.time) + math.Sqrt(float64(d))) / 2
-	//x2 := (float64(race.time) - math.Sqrt(float64(d))) / 2
-	//log.Printf("winningOutcomes: %d, formula: %d", winningOutcomes, int(x1-x2))
-	// this doesn't work reliably due to rounding
 	return winningOutcomes
+}
+
+func getWinningOutcomesByFormula(race raceEntry) int {
+	// formula: buttonPressTime*buttonPressTime-race.time*buttonPressTime+race.distance < 0
+	d := race.time*race.time - 4*race.distance
+	x1 := math.Ceil((float64(race.time)+math.Sqrt(float64(d)))/2) - 1
+	x2 := math.Floor((float64(race.time)-math.Sqrt(float64(d)))/2) + 1
+	return int(x1 - x2 + 1)
 }
