@@ -15,10 +15,9 @@ var input string
 var digits = regexp.MustCompile("\\d+")
 
 type digitRange struct {
-	start       int
-	startSource int
-	length      int
-	offset      int
+	start  int
+	length int
+	offset int
 }
 
 func main() {
@@ -34,27 +33,25 @@ func main() {
 	minLocation := int(math.Inf(0))
 	for _, digitsRange := range getSeedRanges(input, false) {
 		id := digitsRange.start
-		for _, lookupTable := range resolveOrder {
-			id = lookupID(id, lookupTable)
+		for _, overrides := range resolveOrder {
+			id = lookupID(id, overrides)
 		}
+		// after going through resolveOrder, id is location id
 		if id < minLocation {
 			minLocation = id
 		}
 	}
 	lookupRanges := getSeedRanges(input, true)
-	for _, lookupTable := range resolveOrder {
+	for _, overrides := range resolveOrder {
 		var newLookupRanges []digitRange
 		for _, lookupRange := range lookupRanges {
-			newLookupRanges = append(newLookupRanges, lookupIDRange(lookupRange, lookupTable)...)
+			newLookupRanges = append(newLookupRanges, lookupIDRange(lookupRange, overrides)...)
 		}
 		lookupRanges = newLookupRanges
 	}
+	// after going through resolveOrder, lookupRanges contain locations
 	slices.SortFunc(lookupRanges, func(a, b digitRange) int { return a.start - b.start })
 	minLocationRange := lookupRanges[0].start
-	// somewhere I add zero by mistake
-	if minLocationRange == 0 {
-		minLocationRange = lookupRanges[1].start
-	}
 	log.Printf("Min location: %d, for ranges: %d", minLocation, minLocationRange)
 }
 
@@ -111,9 +108,9 @@ func lookupID(id int, data []digitRange) int {
 	return id
 }
 
-func lookupIDRange(lookupRange digitRange, data []digitRange) (digitsRanges []digitRange) {
-	slices.SortFunc(data, func(a, b digitRange) int { return a.start - b.start })
-	for _, e := range data {
+func lookupIDRange(lookupRange digitRange, overrides []digitRange) (digitsRanges []digitRange) {
+	slices.SortFunc(overrides, func(a, b digitRange) int { return a.start - b.start })
+	for _, e := range overrides {
 		if lookupRange.start <= e.start+e.length && e.start <= lookupRange.start+lookupRange.length {
 			// adjust found range to start not earlier than the parent one
 			if e.start < lookupRange.start {
@@ -124,36 +121,30 @@ func lookupIDRange(lookupRange digitRange, data []digitRange) (digitsRanges []di
 			if lookupRange.start+lookupRange.length < e.start+e.length {
 				e.length = lookupRange.start + lookupRange.length - e.start
 			}
+			// move the original range start to the start of the current offset
+			if lookupRange.start != e.start {
+				digitsRanges = append(digitsRanges, digitRange{
+					start:  lookupRange.start,
+					length: e.start - lookupRange.start,
+				})
+				lookupRange.start = e.start - lookupRange.start
+			}
+			// add found range to the result
 			digitsRanges = append(digitsRanges, digitRange{
-				start:       e.start + e.offset,
-				startSource: e.start,
-				length:      e.length,
+				start:  e.start + e.offset,
+				length: e.length,
 			})
+			// cut the part of lookupRange we will just found in overrides
+			lookupRange.start += +e.length
+			lookupRange.length -= e.length
 		}
 	}
-	rangesLeft := removeOverlaps(lookupRange, digitsRanges)
-	digitsRanges = append(digitsRanges, rangesLeft...)
-	return digitsRanges
-}
-
-func removeOverlaps(lookupRange digitRange, ranges []digitRange) []digitRange {
-	var result []digitRange
-	for _, r := range ranges {
-		if lookupRange.start != r.startSource {
-			result = append(result, digitRange{
-				start:  lookupRange.start,
-				length: r.startSource - lookupRange.start,
-			})
-			lookupRange.start = r.startSource
-		}
-		lookupRange.start += +r.length
-		lookupRange.length -= r.length
-	}
+	// if some lookup range is left after finding overwrites, add it to the result
 	if lookupRange.length != 0 {
-		result = append(result, digitRange{
+		digitsRanges = append(digitsRanges, digitRange{
 			start:  lookupRange.start,
 			length: lookupRange.length,
 		})
 	}
-	return result
+	return digitsRanges
 }
