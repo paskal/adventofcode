@@ -18,10 +18,11 @@ type digitRange struct {
 	start       int
 	startSource int
 	length      int
+	offset      int
 }
 
 func main() {
-	resolveOrder := [][][]int{
+	resolveOrder := [][]digitRange{
 		collectMatches("seed-to-soil"),
 		collectMatches("soil-to-fertilizer"),
 		collectMatches("fertilizer-to-water"),
@@ -57,8 +58,8 @@ func main() {
 	log.Printf("Min location: %d, for ranges: %d", minLocation, minLocationRange)
 }
 
-func collectMatches(matchString string) [][]int {
-	var results = [][]int{}
+func collectMatches(matchString string) []digitRange {
+	var results []digitRange
 	findSectionRegexp := regexp.MustCompile(matchString + " map:\n(?:\\d+ \\d+ \\d+\n?)+")
 	sectionRaw := findSectionRegexp.FindStringSubmatch(input)[0]
 	digitsRegexp := regexp.MustCompile("(\\d+) (\\d+) (\\d+)")
@@ -68,7 +69,11 @@ func collectMatches(matchString string) [][]int {
 			destinationRangeStart, _ := strconv.Atoi(match[1])
 			sourceRangeStart, _ := strconv.Atoi(match[2])
 			rangeLength, _ := strconv.Atoi(match[3])
-			results = append(results, []int{destinationRangeStart, sourceRangeStart, rangeLength})
+			results = append(results, digitRange{
+				start:  sourceRangeStart,
+				length: rangeLength,
+				offset: destinationRangeStart - sourceRangeStart,
+			})
 		}
 	}
 	return results
@@ -97,34 +102,32 @@ func getSeedRanges(text string, ranges bool) []digitRange {
 	return digitRanges
 }
 
-func lookupID(id int, data [][]int) int {
-	for _, entry := range data {
-		if id >= entry[1] && id < entry[1]+entry[2] {
-			return entry[0] + id - entry[1]
+func lookupID(id int, data []digitRange) int {
+	for _, e := range data {
+		if id >= e.start && id < e.start+e.length {
+			return id + e.offset
 		}
 	}
 	return id
 }
 
-func lookupIDRange(lookupRange digitRange, data [][]int) (digitsRanges []digitRange) {
-	slices.SortFunc(data, func(a, b []int) int { return a[1] - b[1] })
+func lookupIDRange(lookupRange digitRange, data []digitRange) (digitsRanges []digitRange) {
+	slices.SortFunc(data, func(a, b digitRange) int { return a.start - b.start })
 	for _, e := range data {
-		destinationStart, sourceStart, length := e[0], e[1], e[2]
-		if lookupRange.start <= sourceStart+length && sourceStart <= lookupRange.start+lookupRange.length {
-			// adjust found diapason to start not earlier than the parent one
-			if sourceStart < lookupRange.start {
-				length -= lookupRange.start - sourceStart
-				destinationStart += lookupRange.start - sourceStart
-				sourceStart = lookupRange.start
+		if lookupRange.start <= e.start+e.length && e.start <= lookupRange.start+lookupRange.length {
+			// adjust found range to start not earlier than the parent one
+			if e.start < lookupRange.start {
+				e.length -= lookupRange.start - e.start
+				e.start = lookupRange.start
 			}
 			// adjust length to stay within bounds of parent range
-			if lookupRange.start+lookupRange.length < sourceStart+length {
-				length = lookupRange.start + lookupRange.length - sourceStart
+			if lookupRange.start+lookupRange.length < e.start+e.length {
+				e.length = lookupRange.start + lookupRange.length - e.start
 			}
 			digitsRanges = append(digitsRanges, digitRange{
-				start:       destinationStart,
-				startSource: sourceStart,
-				length:      length,
+				start:       e.start + e.offset,
+				startSource: e.start,
+				length:      e.length,
 			})
 		}
 	}
@@ -133,23 +136,23 @@ func lookupIDRange(lookupRange digitRange, data [][]int) (digitsRanges []digitRa
 	return digitsRanges
 }
 
-func removeOverlaps(originalRange digitRange, ranges []digitRange) []digitRange {
+func removeOverlaps(lookupRange digitRange, ranges []digitRange) []digitRange {
 	var result []digitRange
 	for _, r := range ranges {
-		if originalRange.start != r.startSource {
+		if lookupRange.start != r.startSource {
 			result = append(result, digitRange{
-				start:  originalRange.start,
-				length: r.startSource - originalRange.start,
+				start:  lookupRange.start,
+				length: r.startSource - lookupRange.start,
 			})
-			originalRange.start = r.startSource
+			lookupRange.start = r.startSource
 		}
-		originalRange.start += +r.length
-		originalRange.length -= r.length
+		lookupRange.start += +r.length
+		lookupRange.length -= r.length
 	}
-	if originalRange.length != 0 {
+	if lookupRange.length != 0 {
 		result = append(result, digitRange{
-			start:  originalRange.start,
-			length: originalRange.length,
+			start:  lookupRange.start,
+			length: lookupRange.length,
 		})
 	}
 	return result
