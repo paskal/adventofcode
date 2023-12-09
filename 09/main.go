@@ -19,15 +19,28 @@ func main() {
 			firstRowDigits[i] = append(firstRowDigits[i], num)
 		}
 	}
-	var sum int
-	for _, row := range firstRowDigits {
-		var nextNumber int
-		deep := [][]int{row}
-		for nextNumber == 0 {
+	sumForward := nextSequencesItemsSum(true, firstRowDigits)
+	sumBackward := nextSequencesItemsSum(false, firstRowDigits)
+	log.Printf("Sum of rows forward: %d, backward: %d", sumForward, sumBackward)
+}
+
+func nextSequencesItemsSum(forward bool, digits [][]int) int {
+	var result int
+	for _, row := range digits {
+		var nextInSequence int
+		deep := [][]int{row} // initialise with the first row we got
+		for {
 			deep = append(deep, []int{})
-			for i := 1; i < len(deep[len(deep)-2]); i++ {
-				currentRow := deep[len(deep)-2]
-				deep[len(deep)-1] = append(deep[len(deep)-1], currentRow[i]-currentRow[i-1])
+			if forward {
+				for i := 1; i < len(deep[len(deep)-2]); i++ {
+					currentRow := deep[len(deep)-2]
+					deep[len(deep)-1] = append(deep[len(deep)-1], currentRow[i]-currentRow[i-1])
+				}
+			} else {
+				for i := len(deep[len(deep)-2]) - 1; i > 0; i-- {
+					currentRow := deep[len(deep)-2]
+					deep[len(deep)-1] = append([]int{currentRow[i] - currentRow[i-1]}, deep[len(deep)-1]...)
+				}
 			}
 
 			allZeroes := true
@@ -38,14 +51,21 @@ func main() {
 				}
 			}
 			if allZeroes {
-				// nextNumber starts with 0 as last row is all zeroes
+				// nextInSequence starts with 0 as last row is all zeroes
+				// for that reason we also skip that last row in the loop below
 				for i := len(deep) - 2; i >= 0; i-- {
-					lastItemCurrentRow := deep[i][len(deep[i])-1]
-					nextNumber = nextNumber + lastItemCurrentRow
+					if forward {
+						lastItemCurrentRow := deep[i][len(deep[i])-1]
+						nextInSequence = nextInSequence + lastItemCurrentRow
+					} else {
+						firstItemCurrentRow := deep[i][0]
+						nextInSequence = firstItemCurrentRow - nextInSequence
+					}
 				}
+				break
 			}
 		}
-		sum += nextNumber
+		result += nextInSequence
 	}
-	log.Printf("Sum of rows: %d", sum)
+	return result
 }
