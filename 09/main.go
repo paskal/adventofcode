@@ -43,13 +43,9 @@ func nextSequencesItemsSum(forward bool, digits [][]int) int {
 				}
 			}
 
-			allZeroes := true
-			for _, n := range deep[len(deep)-1] {
-				if n != 0 {
-					allZeroes = false
-					break
-				}
-			}
+			// first and last element are enough to see if the row is all zeroes.
+			// I found not-all-zeroes case with two zeroes in a row but none with first and last zeroes.
+			allZeroes := deep[len(deep)-1][0] == 0 && deep[len(deep)-1][len(deep[len(deep)-1])-1] == 0
 			if allZeroes {
 				// nextInSequence starts with 0 as last row is all zeroes
 				// for that reason we also skip that last row in the loop below
