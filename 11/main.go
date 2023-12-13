@@ -17,7 +17,7 @@ type galaxy struct {
 }
 
 func main() {
-	galaxies := getGalaxies()
+	galaxies := getGalaxies(2 - 1)
 	var totalLength int
 	for i, source := range galaxies {
 		for _, destination := range galaxies[i+1:] {
@@ -26,11 +26,21 @@ func main() {
 			totalLength += length
 		}
 	}
-	log.Printf("length of shortest paths between all galaxies %d", totalLength)
+	log.Printf("length of shortest paths between all galaxies with expand 2x: %d", totalLength)
+	galaxies = getGalaxies(1000000 - 1)
+	totalLength = 0
+	for i, source := range galaxies {
+		for _, destination := range galaxies[i+1:] {
+			length := findPathLength(source.x, source.y, destination.x, destination.y)
+			galaxies[i].pathLengths = append(galaxies[i].pathLengths, length)
+			totalLength += length
+		}
+	}
+	log.Printf("length of shortest paths between all galaxies with expand 1000000x: %d", totalLength)
 
 }
 
-func getGalaxies() (galaxies []galaxy) {
+func getGalaxies(expandValue int) (galaxies []galaxy) {
 	var filledRows, filledColumns []int
 	for y, s := range strings.Split(input, "\n") {
 		for x, c := range strings.Split(s, "") {
@@ -46,14 +56,14 @@ func getGalaxies() (galaxies []galaxy) {
 		// no need to check current row as it has galaxy
 		for x := 0; x < galaxies[i].x; x++ {
 			if !slices.Contains(filledRows, x) {
-				incX++
+				incX += expandValue
 			}
 		}
 		// no need to check current column as it has galaxy
 		var incY int
 		for y := 0; y < galaxies[i].y; y++ {
 			if !slices.Contains(filledColumns, y) {
-				incY++
+				incY += expandValue
 			}
 		}
 		galaxies[i].x += incX
