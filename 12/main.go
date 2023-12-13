@@ -4,9 +4,10 @@ import (
 	_ "embed"
 	"log"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 )
 
 //go:embed input.txt
@@ -18,12 +19,29 @@ type row struct {
 }
 
 func main() {
-	rows := getRows()
-	var totalPermutations int
-	for _, r := range rows {
-		totalPermutations += countPermutations(strings.Join(r.values, ""), r.damaged)
+	rowsOne := getRows(1)
+	rowsFive := getRows(5)
+	var totalPermutationsOne atomic.Int32
+	var totalPermutationsFive atomic.Int32
+	waitGroup := sync.WaitGroup{}
+	waitGroup.Add(len(rowsOne))
+	for _, r := range rowsOne {
+		go func(r row) {
+			totalPermutationsOne.Add(int32(countPermutations(strings.Join(r.values, ""), r.damaged)))
+			waitGroup.Done()
+		}(r)
 	}
-	log.Printf("total permutations: %d", totalPermutations)
+	waitGroup.Wait()
+	log.Printf("total permutations for multiplier 1: %d", totalPermutationsOne.Load())
+	waitGroup.Add(len(rowsFive))
+	for _, r := range rowsFive {
+		go func(r row) {
+			totalPermutationsFive.Add(int32(countPermutations(strings.Join(r.values, ""), r.damaged)))
+			waitGroup.Done()
+		}(r)
+	}
+	waitGroup.Wait()
+	log.Printf("total permutations for multiplier 5: %d", totalPermutationsFive.Load())
 }
 
 func countPermutations(values string, damaged []int) (total int) {
@@ -59,31 +77,40 @@ func patternMatches(values string, damaged []int) bool {
 		valuesDamagedPattern = append(valuesDamagedPattern, len(c[0]))
 	}
 	// case of full match should be checked completely
-	if len(beforeQuestionMark) == 1 {
-		return slices.Equal(damaged, valuesDamagedPattern)
+	if len(beforeQuestionMark) == 1 && len(valuesDamagedPattern) != len(damaged) {
+		return false
 	}
 	// partial match check
 	for i, patternValue := range valuesDamagedPattern {
-		if len(damaged) <= i || damaged[i] < patternValue {
+		// 1. length of damaged is lower than resulting pattern length
+		// 2. damaged value for given index is lower than discovered pattern value
+		// 3. it's not the last element of the list of patterns, and damaged value doesn't completely match discovered pattern value
+		// (3. is more strict check than 2. only for cases when we know number won't increase)
+		// 4. last item check if no question marks left
+		if len(damaged) <= i || damaged[i] < patternValue || (i < len(valuesDamagedPattern)-1 && damaged[i] != patternValue) || (len(beforeQuestionMark) == 1 && i == len(valuesDamagedPattern)-1 && damaged[i] != patternValue) {
 			return false
 		}
 	}
 	return true
 }
 
-func getRows() (rows []row) {
+func getRows(multiplier int) (rows []row) {
 	digitsRegexp := regexp.MustCompile(`\d+`)
 	for _, s := range strings.Split(input, "\n") {
 		raw := strings.Split(s, " ")
 		if len(raw) != 2 {
 			log.Panicf("unexpected input, length is not 2 but %d", len(raw))
 		}
-		rawValues, rawDigits := raw[0], raw[1]
+		multipliedRawValues, multipliedRawDigits := raw[0], raw[1]
+		for i := 1; i < multiplier; i++ {
+			multipliedRawValues += "?" + raw[0]
+			multipliedRawDigits += "," + raw[1]
+		}
 		newRow := row{}
-		for _, c := range strings.Split(rawValues, "") {
+		for _, c := range strings.Split(multipliedRawValues, "") {
 			newRow.values = append(newRow.values, c)
 		}
-		for _, d := range digitsRegexp.FindAllStringSubmatch(rawDigits, -1) {
+		for _, d := range digitsRegexp.FindAllStringSubmatch(multipliedRawDigits, -1) {
 			num, _ := strconv.Atoi(d[0])
 			newRow.damaged = append(newRow.damaged, num)
 		}
