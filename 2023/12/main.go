@@ -20,9 +20,7 @@ type row struct {
 
 func main() {
 	rowsOne := getRows(1)
-	rowsFive := getRows(5)
 	var totalPermutationsOne atomic.Int32
-	var totalPermutationsFive atomic.Int32
 	waitGroup := sync.WaitGroup{}
 	waitGroup.Add(len(rowsOne))
 	for _, r := range rowsOne {
@@ -33,6 +31,9 @@ func main() {
 	}
 	waitGroup.Wait()
 	log.Printf("total permutations for multiplier 1: %d", totalPermutationsOne.Load())
+
+	rowsFive := getRows(5)
+	var totalPermutationsFive atomic.Int32
 	waitGroup.Add(len(rowsFive))
 	for _, r := range rowsFive {
 		go func(r row) {
@@ -44,7 +45,8 @@ func main() {
 	log.Printf("total permutations for multiplier 5: %d", totalPermutationsFive.Load())
 }
 
-func countPermutations(values string, damaged []int) (total int) {
+func countPermutations(values string, damagedPattern []int) (total int) {
+	damagedRegexp := regexp.MustCompile(`#+`)
 	for i, c := range strings.Split(values, "") {
 		if c == "?" {
 			var valueStart string
@@ -52,42 +54,59 @@ func countPermutations(values string, damaged []int) (total int) {
 				valueStart = strings.Join(strings.Split(values, "")[:i], "")
 			}
 			valueEnd := strings.Join(strings.Split(values, "")[i+1:], "")
-			tryHashTag := valueStart + "#" + valueEnd
-			tryDot := valueStart + "." + valueEnd
-			if patternMatches(tryHashTag, damaged) {
-				total += countPermutations(tryHashTag, damaged)
+			var hashTagPattern []int
+			for _, match := range damagedRegexp.FindAllStringSubmatch(valueStart+"#", -1) {
+				hashTagPattern = append(hashTagPattern, len(match[0]))
 			}
-			if patternMatches(tryDot, damaged) {
-				total += countPermutations(tryDot, damaged)
+			tryHashTag := valueStart + "#" + valueEnd
+			if patternMatches(hashTagPattern, damagedPattern, false) {
+				total += countPermutations(tryHashTag, damagedPattern)
+			}
+			// reduce hashtag count by one for trying the dot
+			if len(hashTagPattern) > 0 {
+				hashTagPattern[len(hashTagPattern)-1]--
+				if hashTagPattern[len(hashTagPattern)-1] == 0 {
+					hashTagPattern = hashTagPattern[:len(hashTagPattern)-1]
+				}
+			}
+			tryDot := valueStart + "." + valueEnd
+			if patternMatches(hashTagPattern, damagedPattern, false) {
+				total += countPermutations(tryDot, damagedPattern)
 			}
 			break
 		}
-		if i == len(values)-1 && patternMatches(values, damaged) {
-			total += 1
+		if i == len(values)-1 {
+			var fullPattern []int
+			for _, match := range damagedRegexp.FindAllStringSubmatch(values, -1) {
+				fullPattern = append(fullPattern, len(match[0]))
+			}
+			if patternMatches(fullPattern, damagedPattern, true) {
+				total += 1
+			}
 		}
 	}
 	return total
 }
 
-func patternMatches(values string, damaged []int) bool {
-	var valuesDamagedPattern []int
-	beforeQuestionMark := strings.Split(values, "?")
-	damagedRegexp := regexp.MustCompile(`#+`)
-	for _, c := range damagedRegexp.FindAllStringSubmatch(beforeQuestionMark[0], -1) {
-		valuesDamagedPattern = append(valuesDamagedPattern, len(c[0]))
-	}
-	// case of full match should be checked completely
-	if len(beforeQuestionMark) == 1 && len(valuesDamagedPattern) != len(damaged) {
+func patternMatches(checkPattern []int, damaged []int, full bool) bool {
+	// length of what we got is bigger than damaged pattern
+	if len(damaged) < len(checkPattern) {
 		return false
 	}
-	// partial match check
-	for i, patternValue := range valuesDamagedPattern {
-		// 1. length of damaged is lower than resulting pattern length
-		// 2. damaged value for given index is lower than discovered pattern value
-		// 3. it's not the last element of the list of patterns, and damaged value doesn't completely match discovered pattern value
-		// (3. is more strict check than 2. only for cases when we know number won't increase)
-		// 4. last item check if no question marks left
-		if len(damaged) <= i || damaged[i] < patternValue || (i < len(valuesDamagedPattern)-1 && damaged[i] != patternValue) || (len(beforeQuestionMark) == 1 && i == len(valuesDamagedPattern)-1 && damaged[i] != patternValue) {
+	// case of full match should be checked completely
+	if full && len(checkPattern) != len(damaged) {
+		return false
+	}
+	// partial match check, only for last two items as previous are checked before
+	for i, patternValue := range checkPattern {
+		if len(checkPattern) > 3 && i < 3 {
+
+		}
+		// 1. damaged value for given index is lower than discovered pattern value
+		// 2. it's not the last element of the list of patterns, and damaged value doesn't completely match discovered pattern value
+		// (2. is more strict check than 1. only for cases when we know number won't increase)
+		// 3. last item check if no question marks left
+		if damaged[i] < patternValue || (i < len(checkPattern)-1 && damaged[i] != patternValue) || (full && i == len(checkPattern)-1 && damaged[i] != patternValue) {
 			return false
 		}
 	}
