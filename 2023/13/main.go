@@ -4,7 +4,6 @@ import (
 	_ "embed"
 	"fmt"
 	"log"
-	"slices"
 	"strings"
 )
 
@@ -38,73 +37,109 @@ func (l *locationMap) String() string {
 	return result
 }
 
-func (l *locationMap) calculateSymmetry() {
-	l.verticalSymmetry = findVerticalSymmetry(l.location)
-	l.horizontalSymmetry = findHorizontalSymmetry(l.location)
+func (l *locationMap) calculateSymmetry(withSmudges int) {
+	l.verticalSymmetry = findVerticalSymmetry(l.location, withSmudges)
+	l.horizontalSymmetry = findHorizontalSymmetry(l.location, withSmudges)
 }
 
-func findHorizontalSymmetry(location [][]string) int {
+func findHorizontalSymmetry(location [][]string, withSmudges int) int {
 	var result int
 	var symmetry []int
+	var symmetrySmudges []int
 	// calculate first row to learn all the possibilities and check only them after
 	for y := 1; y < len(location); y++ {
+		allowedSmudges := withSmudges
 		var noSymmetry bool
-		var i int
+		var j int
 		for yBack := y - 1; yBack >= 0; yBack-- {
-			if y+i < len(location) && !slices.Equal(location[y+i], location[yBack]) {
-				noSymmetry = true
-				break
+			for x := 0; x < len(location[0]) && y+j < len(location); x++ {
+				if location[y+j][x] != location[yBack][x] {
+					if allowedSmudges > 0 {
+						allowedSmudges--
+						continue
+					}
+					noSymmetry = true
+					break
+				}
+				if noSymmetry {
+					break
+				}
 			}
-			i++
+			j++
 		}
 		if !noSymmetry {
 			symmetry = append(symmetry, y)
+			symmetrySmudges = append(symmetrySmudges, allowedSmudges)
 		}
 	}
-	if len(symmetry) == 1 {
-		result = symmetry[0]
+	for i := 0; i < len(symmetry); i++ {
+		// only allow results when no smudges are left unaccounted for
+		if symmetrySmudges[i] == 0 {
+			result = symmetry[i]
+		}
 	}
 	return result
 }
 
-func findVerticalSymmetry(location [][]string) int {
+func findVerticalSymmetry(location [][]string, withSmudges int) int {
 	var result int
 	var symmetry []int
+	var symmetrySmudges []int
 	// calculate first row to learn all the possibilities and check only them after
 	for x := 1; x < len(location[0]); x++ {
+		allowedSmudges := withSmudges
 		var noSymmetry bool
-		var i int
+		var j int
 		for xBack := x - 1; xBack >= 0; xBack-- {
-			if x+i < len(location[0]) && location[0][x+i] != location[0][xBack] {
+			if x+j < len(location[0]) && location[0][x+j] != location[0][xBack] {
+				if allowedSmudges > 0 {
+					allowedSmudges--
+					j++
+					continue
+				}
 				noSymmetry = true
 				break
 			}
-			i++
+			j++
 		}
 		if !noSymmetry {
 			symmetry = append(symmetry, x)
+			symmetrySmudges = append(symmetrySmudges, allowedSmudges)
 		}
 	}
-	for _, row := range location {
+
+	// skip first line
+	for rowNumber := 1; rowNumber < len(location); rowNumber++ {
 		var newSymmetry []int
-		for _, x := range symmetry {
-			var i int
+		var newSmudges []int
+		for i, x := range symmetry {
+			var j int
 			var noSymmetry bool
 			for xBack := x - 1; xBack >= 0; xBack-- {
-				if x+i < len(row) && row[x+i] != row[xBack] {
+				if x+j < len(location[rowNumber]) && location[rowNumber][x+j] != location[rowNumber][xBack] {
+					if symmetrySmudges[i] > 0 {
+						symmetrySmudges[i]--
+						j++
+						continue
+					}
 					noSymmetry = true
 					break
 				}
-				i++
+				j++
 			}
 			if !noSymmetry {
 				newSymmetry = append(newSymmetry, x)
+				newSmudges = append(newSmudges, symmetrySmudges[i])
 			}
 		}
 		symmetry = newSymmetry
+		symmetrySmudges = newSmudges
 	}
-	if len(symmetry) == 1 {
-		result = symmetry[0]
+	for i := 0; i < len(symmetry); i++ {
+		// only allow results when no smudges are left unaccounted for
+		if symmetrySmudges[i] == 0 {
+			result = symmetry[i]
+		}
 	}
 	return result
 }
@@ -112,14 +147,20 @@ func findVerticalSymmetry(location [][]string) int {
 func main() {
 	patterns := getPattern()
 
-	var sumPartOne int
+	var sumWithNoSmudges int
+	var sumWithOneSmudge int
 	for i, _ := range patterns {
-		patterns[i].calculateSymmetry()
-		fmt.Printf("%s\n", patterns[i])
-		sumPartOne += patterns[i].horizontalSymmetry*100 + patterns[i].verticalSymmetry
-
+		patterns[i].calculateSymmetry(0)
+		sumWithNoSmudges += patterns[i].horizontalSymmetry*100 + patterns[i].verticalSymmetry
+		fmt.Printf("with no smudges:\n%s\n", patterns[i])
+		patterns[i].calculateSymmetry(1)
+		fmt.Printf("with one smudge:\n%s\n", patterns[i])
+		if patterns[i].horizontalSymmetry+patterns[i].verticalSymmetry == 0 {
+			log.Printf("no one smudge simmetry found for pattern %d", i+1)
+		}
+		sumWithOneSmudge += patterns[i].horizontalSymmetry*100 + patterns[i].verticalSymmetry
 	}
-	log.Printf("Sum for part one: %d", sumPartOne)
+	log.Printf("Sum with zero smudges: %d , with one smudge: %d", sumWithNoSmudges, sumWithOneSmudge)
 }
 
 func getPattern() []*locationMap {
