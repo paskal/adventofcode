@@ -2,42 +2,53 @@ package main
 
 import (
 	_ "embed"
+	"fmt"
 	"log"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
+
+	"github.com/go-pkgz/lcw"
 )
 
 //go:embed input.txt
 var input string
 
 type row struct {
-	values  []string
-	damaged []int
+	values string
+	groups string
+}
+
+type cache struct {
+	cache lcw.LoadingCache
 }
 
 func main() {
-	rowsOne := getRows(1)
-	var totalPermutationsOne atomic.Int32
 	waitGroup := sync.WaitGroup{}
-	waitGroup.Add(len(rowsOne))
-	for _, r := range rowsOne {
+	c := cache{}
+	c.cache, _ = lcw.NewLruCache()
+	defer c.cache.Close()
+
+	oneRow := getRows(1)
+	var totalPermutationsOne atomic.Uint64
+	waitGroup.Add(len(oneRow))
+	for _, r := range oneRow {
 		go func(r row) {
-			totalPermutationsOne.Add(int32(countPermutations(strings.Join(r.values, ""), r.damaged)))
+			totalPermutationsOne.Add(uint64(c.countPermutations(r.values, r.groups)))
 			waitGroup.Done()
 		}(r)
 	}
 	waitGroup.Wait()
 	log.Printf("total permutations for multiplier 1: %d", totalPermutationsOne.Load())
 
-	rowsFive := getRows(5)
-	var totalPermutationsFive atomic.Int32
-	waitGroup.Add(len(rowsFive))
-	for _, r := range rowsFive {
+	fiveRows := getRows(5)
+	var totalPermutationsFive atomic.Uint64
+	waitGroup.Add(len(fiveRows))
+	for _, r := range fiveRows {
 		go func(r row) {
-			totalPermutationsFive.Add(int32(countPermutations(strings.Join(r.values, ""), r.damaged)))
+			totalPermutationsFive.Add(uint64(c.countPermutations(r.values, r.groups)))
 			waitGroup.Done()
 		}(r)
 	}
@@ -45,76 +56,98 @@ func main() {
 	log.Printf("total permutations for multiplier 5: %d", totalPermutationsFive.Load())
 }
 
-func countPermutations(values string, damagedPattern []int) (total int) {
-	damagedRegexp := regexp.MustCompile(`#+`)
-	for i, c := range strings.Split(values, "") {
-		if c == "?" {
-			var valueStart string
-			if i > 0 {
-				valueStart = strings.Join(strings.Split(values, "")[:i], "")
-			}
-			valueEnd := strings.Join(strings.Split(values, "")[i+1:], "")
-			var hashTagPattern []int
-			for _, match := range damagedRegexp.FindAllStringSubmatch(valueStart+"#", -1) {
-				hashTagPattern = append(hashTagPattern, len(match[0]))
-			}
-			tryHashTag := valueStart + "#" + valueEnd
-			if patternMatches(hashTagPattern, damagedPattern, false) {
-				total += countPermutations(tryHashTag, damagedPattern)
-			}
-			// reduce hashtag count by one for trying the dot
-			if len(hashTagPattern) > 0 {
-				hashTagPattern[len(hashTagPattern)-1]--
-				if hashTagPattern[len(hashTagPattern)-1] == 0 {
-					hashTagPattern = hashTagPattern[:len(hashTagPattern)-1]
-				}
-			}
-			tryDot := valueStart + "." + valueEnd
-			if patternMatches(hashTagPattern, damagedPattern, false) {
-				total += countPermutations(tryDot, damagedPattern)
-			}
-			break
+// that solution is originated from Reddit user u/StaticMoose, I didn't come up with it myself
+// https://www.reddit.com/r/adventofcode/comments/18hbbxe/2023_day_12python_stepbystep_tutorial_with_bonus/
+func (c cache) countPermutations(values string, rawGroups string) (total int) {
+	// no groups but possible still more values to check
+	if rawGroups == "" {
+		if strings.Contains(values, "#") {
+			return 0
 		}
-		if i == len(values)-1 {
-			var fullPattern []int
-			for _, match := range damagedRegexp.FindAllStringSubmatch(values, -1) {
-				fullPattern = append(fullPattern, len(match[0]))
-			}
-			if patternMatches(fullPattern, damagedPattern, true) {
-				total += 1
-			}
-		}
+		return 1
 	}
-	return total
+
+	// no values but groups still present
+	if values == "" {
+		return 0
+	}
+
+	switch strings.Split(values, "")[0] {
+	case "#":
+		return c.pound(values, rawGroups)
+	case ".":
+		return c.dot(values, rawGroups)
+	}
+	// case "?"
+	return c.pound(values, rawGroups) + c.dot(values, rawGroups)
 }
 
-func patternMatches(checkPattern []int, damaged []int, full bool) bool {
-	// length of what we got is bigger than damaged pattern
-	if len(damaged) < len(checkPattern) {
-		return false
-	}
-	// case of full match should be checked completely
-	if full && len(checkPattern) != len(damaged) {
-		return false
-	}
-	// partial match check, only for last two items as previous are checked before
-	for i, patternValue := range checkPattern {
-		if len(checkPattern) > 3 && i < 3 {
+func (c cache) pound(record, rawGroups string) int {
+	//cachedGroups, _ := c.cache.Get(rawGroups, func() (interface{}, error) {
+	//	return parseGroups(rawGroups), nil
+	//})
+	//groups := cachedGroups.([]int)
+	groups := parseGroups(rawGroups)
 
-		}
-		// 1. damaged value for given index is lower than discovered pattern value
-		// 2. it's not the last element of the list of patterns, and damaged value doesn't completely match discovered pattern value
-		// (2. is more strict check than 1. only for cases when we know number won't increase)
-		// 3. last item check if no question marks left
-		if damaged[i] < patternValue || (i < len(checkPattern)-1 && damaged[i] != patternValue) || (full && i == len(checkPattern)-1 && damaged[i] != patternValue) {
-			return false
-		}
+	nextGroup := groups[0]
+
+	if len(record) < nextGroup {
+		return 0
 	}
-	return true
+
+	recordArray := strings.Split(record, "")
+	// if the first is a pound, then the first N characters must be
+	// able to be treated as a pound, where N is the first group number
+	thisGroup := strings.Join(recordArray[:nextGroup], "")
+	thisGroup = strings.ReplaceAll(thisGroup, "?", "#")
+
+	// if the next group can't fit all the damaged springs, abort
+	if thisGroup != strings.Repeat("#", nextGroup) {
+		return 0
+	}
+
+	// if the rest of the record is just the last group, then we're
+	// done and there's only one possibility
+	if len(record) == nextGroup {
+		if len(groups) == 1 {
+			return 1
+		}
+		return 0
+	}
+
+	// make sure the character that follows this group can be a separator
+	if recordArray[nextGroup] == "." || recordArray[nextGroup] == "?" {
+		record = strings.Join(recordArray[nextGroup+1:], "")
+		rawGroups = strings.Trim(strings.Join(strings.Fields(fmt.Sprint(groups[1:])), ","), "[]")
+		cachedTotal, _ := c.cache.Get(record+rawGroups, func() (interface{}, error) {
+			return c.countPermutations(record, rawGroups), nil
+		})
+		return cachedTotal.(int)
+	}
+
+	return 0
+}
+
+// just move on to next entry as dot doesn't alter groups
+func (c cache) dot(values, rawGroups string) int {
+	values = strings.Join(strings.Split(values, "")[1:], "")
+	cachedTotal, _ := c.cache.Get(values+rawGroups, func() (interface{}, error) {
+		return c.countPermutations(values, rawGroups), nil
+	})
+	return cachedTotal.(int)
+}
+
+func parseGroups(rawGroups string) []int {
+	var groupsPattern []int
+	digitsRegexp := regexp.MustCompile(`\d+`)
+	for _, d := range digitsRegexp.FindAllStringSubmatch(rawGroups, -1) {
+		num, _ := strconv.Atoi(d[0])
+		groupsPattern = append(groupsPattern, num)
+	}
+	return groupsPattern
 }
 
 func getRows(multiplier int) (rows []row) {
-	digitsRegexp := regexp.MustCompile(`\d+`)
 	for _, s := range strings.Split(input, "\n") {
 		raw := strings.Split(s, " ")
 		if len(raw) != 2 {
@@ -125,15 +158,10 @@ func getRows(multiplier int) (rows []row) {
 			multipliedRawValues += "?" + raw[0]
 			multipliedRawDigits += "," + raw[1]
 		}
-		newRow := row{}
-		for _, c := range strings.Split(multipliedRawValues, "") {
-			newRow.values = append(newRow.values, c)
-		}
-		for _, d := range digitsRegexp.FindAllStringSubmatch(multipliedRawDigits, -1) {
-			num, _ := strconv.Atoi(d[0])
-			newRow.damaged = append(newRow.damaged, num)
-		}
-		rows = append(rows, newRow)
+		rows = append(rows, row{
+			values: multipliedRawValues,
+			groups: multipliedRawDigits,
+		})
 	}
 	return rows
 }
