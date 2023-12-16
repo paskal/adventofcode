@@ -119,6 +119,40 @@ func main() {
 	locationMap := getMap(input)
 	locationMap.moveFromWest(0, 0)
 	log.Printf("Energized tiles: %d", locationMap.countEnergized())
+	var countEnergized int
+	for y := 0; y < len(locationMap); y++ {
+		locationMap = getMap(input)
+		locationMap.moveFromWest(0, y)
+		energized := locationMap.countEnergized()
+		if energized > countEnergized {
+			countEnergized = energized
+		}
+	}
+	for y := 0; y < len(locationMap); y++ {
+		locationMap = getMap(input)
+		locationMap.moveFromEast(len(locationMap[0])-1, y)
+		energized := locationMap.countEnergized()
+		if energized > countEnergized {
+			countEnergized = energized
+		}
+	}
+	for x := 0; x < len(locationMap[0]); x++ {
+		locationMap = getMap(input)
+		locationMap.moveFromNorth(x, 0)
+		energized := locationMap.countEnergized()
+		if energized > countEnergized {
+			countEnergized = energized
+		}
+	}
+	for x := 0; x < len(locationMap[0]); x++ {
+		locationMap = getMap(input)
+		locationMap.moveFromSouth(x, len(locationMap)-1)
+		energized := locationMap.countEnergized()
+		if energized > countEnergized {
+			countEnergized = energized
+		}
+	}
+	log.Printf("Most tiles: %d", countEnergized)
 }
 
 func getMap(input string) (locationMap location) {
