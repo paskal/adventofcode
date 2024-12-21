@@ -12,8 +12,34 @@ import (
 //go:embed input.txt
 var input string
 
+func partOne(numsLeft, numsRight []int) int {
+	slices.Sort(numsLeft)
+	slices.Sort(numsRight)
+	var sum int
+	for i := range numsLeft {
+		sum += int(math.Abs(float64(numsRight[i] - numsLeft[i])))
+	}
+	return sum
+}
+
+func partTwo(numsLeft, numsRight []int) int {
+	commonalityRight := map[int]int{}
+	for _, num := range numsRight {
+		if _, ok := commonalityRight[num]; !ok {
+			commonalityRight[num] = 0
+		}
+		commonalityRight[num]++
+	}
+	var sum int
+	for _, num := range numsLeft {
+		numRightCommonality, _ := commonalityRight[num]
+		sum += num * numRightCommonality
+	}
+	return sum
+}
+
 func main() {
-	numsLeft, numsRight := make([]int, 0), make([]int, 0)
+	var numsLeft, numsRight []int
 	for i, s := range strings.Split(input, "\n") {
 		nums := strings.Fields(s)
 		if len(nums) != 2 {
@@ -30,11 +56,7 @@ func main() {
 		}
 		numsRight = append(numsRight, num)
 	}
-	slices.Sort(numsLeft)
-	slices.Sort(numsRight)
-	var sum int
-	for i := range numsLeft {
-		sum += int(math.Abs(float64(numsRight[i] - numsLeft[i])))
-	}
-	log.Printf("Sum: %d", sum)
+
+	log.Printf("Sum for part 1: %d", partOne(numsLeft, numsRight))
+	log.Printf("Sum for part 2: %d", partTwo(numsLeft, numsRight))
 }
