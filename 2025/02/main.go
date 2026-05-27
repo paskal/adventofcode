@@ -28,8 +28,7 @@ func isInvalidPart2(d int) bool {
 	numberOfDigits := int(math.Log10(float64(d))) + 1
 	numAsString := strconv.Itoa(d)
 	for i := 1; i <= numberOfDigits/2; i++ {
-		divisionByI := float64(numberOfDigits) / float64(i)
-		if divisionByI != float64(int(divisionByI)) {
+		if numberOfDigits%i != 0 {
 			continue
 		}
 		gotGoodSegment := true
