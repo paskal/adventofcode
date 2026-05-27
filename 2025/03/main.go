@@ -12,21 +12,21 @@ var input string
 
 func biggestNumber(s string, budget int) int {
 	lastIndex := -1
-	var result string
+	var result strings.Builder
 	remainingBudget := budget
-	for len(result) < budget {
+	for result.Len() < budget {
 		currentIndex := lastIndex + 1
 		for i := currentIndex + 1; i < len(s)-(remainingBudget-1); i++ {
 			if s[currentIndex] < s[i] {
 				currentIndex = i
 			}
 		}
-		result += string(s[currentIndex])
+		result.WriteByte(s[currentIndex])
 		lastIndex = currentIndex
 		remainingBudget--
 	}
 
-	r, _ := strconv.ParseInt(result, 10, 64)
+	r, _ := strconv.ParseInt(result.String(), 10, 64)
 	return int(r)
 }
 

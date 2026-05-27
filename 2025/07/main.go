@@ -14,22 +14,21 @@ type coordinate struct {
 }
 
 func walkTimeline(gameMap [][]bool, start coordinate) int {
-	var visitedMap [][]int
-	for y, _ := range gameMap {
-		visitedMap = append(visitedMap, make([]int, len(gameMap[y])))
-	}
+	visitedMapCur := make([]int, len(gameMap[0]))
+	visitedMapPrev := make([]int, len(gameMap[0]))
+	visitedMapPrev[start.x] = 1
 
 	for y, _ := range gameMap {
 		if y == start.y {
-			visitedMap[y][start.x]++
 			continue
 		}
-		for x, countAbove := range visitedMap[y-1] {
+		clear(visitedMapCur)
+		for x, countAbove := range visitedMapPrev {
 			if countAbove == 0 {
 				continue
 			}
 			if !gameMap[y][x] {
-				visitedMap[y][x] += countAbove
+				visitedMapCur[x] += countAbove
 				continue
 			}
 			// if we bumped into the split, calculate left and right propagations right away
@@ -37,23 +36,24 @@ func walkTimeline(gameMap [][]bool, start coordinate) int {
 			for leftX := x - 1; leftX >= 0; leftX-- {
 				// stop only once we hit the first non-split node
 				if !gameMap[y][leftX] {
-					visitedMap[y][leftX] += startLeftCount
+					visitedMapCur[leftX] += startLeftCount
 					break
 				}
 			}
 			startRightCount := countAbove
 			for rightX := x + 1; rightX < len(gameMap[y]); rightX++ {
 				if !gameMap[y][rightX] {
-					visitedMap[y][rightX] += startRightCount
+					visitedMapCur[rightX] += startRightCount
 					break
 				}
 			}
 		}
+		visitedMapPrev, visitedMapCur = visitedMapCur, visitedMapPrev
 
 	}
 
 	var timeSplits int
-	for _, n := range visitedMap[len(visitedMap)-1] {
+	for _, n := range visitedMapCur {
 		timeSplits += n
 	}
 	return timeSplits
@@ -84,7 +84,7 @@ func walkAndCountSplits(gameMap [][]bool, start coordinate) int {
 	var numberOfSplits int
 
 	var visitedMap [][]bool
-	for y, _ := range gameMap {
+	for y := range gameMap {
 		visitedMap = append(visitedMap, make([]bool, len(gameMap[y])))
 	}
 

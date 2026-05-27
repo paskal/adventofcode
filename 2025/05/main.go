@@ -15,7 +15,7 @@ func collapseRanges(ranges map[int]int) map[int]int {
 	newRanges := map[int]int{}
 	keys := make([]int, 0)
 
-	for beginning, _ := range ranges {
+	for beginning := range ranges {
 		keys = append(keys, beginning)
 	}
 	slices.Sort(keys)

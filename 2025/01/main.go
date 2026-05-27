@@ -3,7 +3,6 @@ package main
 import (
 	_ "embed"
 	"log"
-	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -21,23 +20,23 @@ func main() {
 		r := lineRegexp.FindStringSubmatch(s)
 		ticks, _ = strconv.ParseInt(r[2], 10, 64)
 		if r[1] == "L" {
-			currentPosition += int(math.Floor(float64(ticks)/100)) * 100 // append full circles to total for passing zero calculation
-			ticks = int64(math.Mod(float64(ticks), 100))                 // drop full circles from ticks for clarity
-			if int64(math.Mod(float64(currentPosition), 100)) != 0 {     // from 0, we won't pass 0 again no matter which direction we go.
-				if int64(math.Mod(float64(currentPosition), 100))-ticks < 0 {
+			currentPosition += int(ticks) / 100 * 100 // append full circles to total for passing zero calculation
+			ticks = ticks % 100                       // drop full circles from ticks for clarity
+			if currentPosition%100 != 0 {             // from 0, we won't pass 0 again no matter which direction we go.
+				if currentPosition%100-int(ticks) < 0 {
 					currentPosition += 100
 				}
-				if int64(math.Mod(float64(currentPosition), 100))-ticks > 0 {
+				if currentPosition%100-int(ticks) > 0 {
 					currentPosition -= 100
 				}
 			}
 			ticks = 100 - ticks
 		}
 		currentPosition += int(ticks)
-		if math.Mod(float64(currentPosition), 100) == 0 {
+		if currentPosition%100 == 0 {
 			numberOfZeroPositions++
 		}
 	}
 	log.Printf("Number of zero positions: %d", numberOfZeroPositions)
-	log.Printf("Number of zero passes: %v", math.Floor(float64(currentPosition)/100))
+	log.Printf("Number of zero passes: %v", currentPosition/100)
 }

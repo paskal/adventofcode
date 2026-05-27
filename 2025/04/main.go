@@ -41,7 +41,14 @@ func calculateFirstPart(grid [][]int) int {
 
 func calculateAndGetNewGrid(grid [][]int) (int, [][]int) {
 	var accessibleRolls int
-	var newGrid = grid
+	var newGrid [][]int
+	// deep copy
+	for y, _ := range grid {
+		newGrid = append(newGrid, make([]int, (len(grid[y]))))
+		for x, _ := range grid[y] {
+			newGrid[y][x] = grid[y][x]
+		}
+	}
 
 	for i := 1; i < len(grid)-1; i++ {
 		for j := 1; j < len(grid[i])-1; j++ {

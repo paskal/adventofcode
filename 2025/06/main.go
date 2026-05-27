@@ -11,15 +11,6 @@ import (
 //go:embed input.txt
 var input string
 
-func getNumberOfDigits(i int) int {
-	x, count := 10, 1
-	for x < i {
-		x *= 10
-		count++
-	}
-	return count
-}
-
 func parseInputPartOne(input string) [][]int {
 	var digitsByLines [][]int
 	rawLines := strings.Split(" "+input, "\n")
@@ -34,7 +25,7 @@ func parseInputPartOne(input string) [][]int {
 	}
 
 	digitsByColumns := make([][]int, len(digitsByLines[0]))
-	for i, _ := range digitsByLines {
+	for i := range digitsByLines {
 		for j, num := range digitsByLines[i] {
 			digitsByColumns[j] = append(digitsByColumns[j], num)
 		}

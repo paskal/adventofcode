@@ -11,19 +11,10 @@ import (
 //go:embed input.txt
 var input string
 
-func getNumberOfDigits(i int) int {
-	x, count := 10, 1
-	for x < i {
-		x *= 10
-		count++
-	}
-	return count
-}
-
 func isInvalidPart1(d int) bool {
-	numberOfDigits := getNumberOfDigits(d)
+	numberOfDigits := int(math.Log10(float64(d))) + 1
 	// uneven number of digits can't contain a pair
-	if math.Remainder(float64(numberOfDigits), 2) != 0 {
+	if numberOfDigits%2 != 0 {
 		return false
 	}
 	numAsString := strconv.Itoa(d)
@@ -34,7 +25,7 @@ func isInvalidPart1(d int) bool {
 }
 
 func isInvalidPart2(d int) bool {
-	numberOfDigits := getNumberOfDigits(d)
+	numberOfDigits := int(math.Log10(float64(d))) + 1
 	numAsString := strconv.Itoa(d)
 	for i := 1; i <= numberOfDigits/2; i++ {
 		divisionByI := float64(numberOfDigits) / float64(i)
